@@ -49,7 +49,6 @@ fi
 
 KEYSTONE_CONF_DIR=${KEYSTONE_CONF_DIR:-/etc/keystone}
 KEYSTONE_CONF=$KEYSTONE_CONF_DIR/keystone.conf
-KEYSTONE_PASTE_INI=${KEYSTONE_PASTE_INI:-$KEYSTONE_CONF_DIR/keystone-paste.ini}
 KEYSTONE_PUBLIC_UWSGI_CONF=$KEYSTONE_CONF_DIR/keystone-uwsgi-public.ini
 KEYSTONE_ADMIN_UWSGI_CONF=$KEYSTONE_CONF_DIR/keystone-uwsgi-admin.ini
 KEYSTONE_PUBLIC_UWSGI=$KEYSTONE_BIN_DIR/keystone-wsgi-public
@@ -64,9 +63,6 @@ else
     KEYSTONE_DEPLOY=mod_wsgi
 fi
 
-# Select the token persistence backend driver
-KEYSTONE_TOKEN_BACKEND=${KEYSTONE_TOKEN_BACKEND:-sql}
-
 # Select the Identity backend driver
 KEYSTONE_IDENTITY_BACKEND=${KEYSTONE_IDENTITY_BACKEND:-sql}
 
@@ -80,7 +76,8 @@ KEYSTONE_ROLE_BACKEND=${KEYSTONE_ROLE_BACKEND:-sql}
 KEYSTONE_RESOURCE_BACKEND=${KEYSTONE_RESOURCE_BACKEND:-sql}
 
 # Select Keystone's token provider (and format)
-# Choose from 'uuid', 'pki', 'pkiz', or 'fernet'
+# Refer keystone doc for supported token provider:
+# https://docs.openstack.org/keystone/latest/admin/token-provider.html
 KEYSTONE_TOKEN_FORMAT=${KEYSTONE_TOKEN_FORMAT:-fernet}
 KEYSTONE_TOKEN_FORMAT=$(echo ${KEYSTONE_TOKEN_FORMAT} | tr '[:upper:]' '[:lower:]')
 
@@ -203,23 +200,7 @@ function configure_keystone {
 
     if [[ "$KEYSTONE_CONF_DIR" != "$KEYSTONE_DIR/etc" ]]; then
         install -m 600 /dev/null $KEYSTONE_CONF
-        if [[ -f "$KEYSTONE_DIR/etc/keystone-paste.ini" ]]; then
-            cp -p "$KEYSTONE_DIR/etc/keystone-paste.ini" "$KEYSTONE_PASTE_INI"
-        fi
     fi
-    if [[ -f "$KEYSTONE_PASTE_INI" ]]; then
-        iniset "$KEYSTONE_CONF" paste_deploy config_file "$KEYSTONE_PASTE_INI"
-    else
-        # compatibility with mixed cfg and paste.deploy configuration
-        KEYSTONE_PASTE_INI="$KEYSTONE_CONF"
-    fi
-
-    if [ "$ENABLE_IDENTITY_V2" == "False" ]; then
-        # Only Identity v3 API should be available; then disable v2 pipelines
-        inidelete $KEYSTONE_PASTE_INI composite:main \\/v2.0
-        inidelete $KEYSTONE_PASTE_INI composite:admin \\/v2.0
-    fi
-
     # Populate ``keystone.conf``
     if is_service_enabled ldap; then
         iniset $KEYSTONE_CONF identity domain_config_dir "$KEYSTONE_CONF_DIR/domains"
@@ -261,8 +242,6 @@ function configure_keystone {
     fi
 
     iniset $KEYSTONE_CONF database connection `database_connection_url keystone`
-
-    iniset $KEYSTONE_CONF token driver "$KEYSTONE_TOKEN_BACKEND"
 
     # Set up logging
     if [ "$SYSLOG" != "False" ]; then
@@ -309,30 +288,32 @@ function configure_keystone {
 # service              --         --
 # --                   --         service
 # --                   --         ResellerAdmin
-# --                   --         Member
+# --                   --         member
 # demo                 admin      admin
-# demo                 demo       Member, anotherrole
+# demo                 demo       member, anotherrole
 # alt_demo             admin      admin
-# alt_demo             alt_demo   Member, anotherrole
-# invisible_to_admin   demo       Member
+# alt_demo             alt_demo   member, anotherrole
+# invisible_to_admin   demo       member
 
 # Group                Users            Roles                 Project
 # ------------------------------------------------------------------
 # admins               admin            admin                 admin
-# nonadmins            demo, alt_demo   Member, anotherrole   demo, alt_demo
+# nonadmins            demo, alt_demo   member, anotherrole   demo, alt_demo
 
 
 # Migrated from keystone_data.sh
 function create_keystone_accounts {
 
-    # The keystone bootstrapping process (performed via keystone-manage bootstrap)
-    # creates an admin user, admin role and admin project. As a sanity check
-    # we exercise the CLI to retrieve the IDs for these values.
+    # The keystone bootstrapping process (performed via keystone-manage
+    # bootstrap) creates an admin user, admin role, member role, and admin
+    # project. As a sanity check we exercise the CLI to retrieve the IDs for
+    # these values.
     local admin_project
     admin_project=$(openstack project show "admin" -f value -c id)
     local admin_user
     admin_user=$(openstack user show "admin" -f value -c id)
     local admin_role="admin"
+    local member_role="member"
 
     get_or_add_user_domain_role $admin_role $admin_user default
 
@@ -348,17 +329,6 @@ function create_keystone_accounts {
     # but ResellerAdmin is needed for a user to act as any project. The name of this
     # role is also configurable in swift-proxy.conf
     get_or_create_role ResellerAdmin
-
-    # The Member role is used by Horizon and Swift so we need to keep it:
-    local member_role="member"
-
-    # Capital Member role is legacy hard coded in Horizon / Swift
-    # configs. Keep it around.
-    get_or_create_role "Member"
-
-    # The reality is that the rest of the roles listed below honestly
-    # should work by symbolic names.
-    get_or_create_role $member_role
 
     # another_role demonstrates that an arbitrary role may be created and used
     # TODO(sleepsonthefloor): show how this can be used for rbac in the future!
@@ -469,11 +439,6 @@ function init_keystone {
     $KEYSTONE_BIN_DIR/keystone-manage --config-file $KEYSTONE_CONF db_sync
     time_stop "dbsync"
 
-    if [[ "$KEYSTONE_TOKEN_FORMAT" == "pki" || "$KEYSTONE_TOKEN_FORMAT" == "pkiz" ]]; then
-        # Set up certificates
-        rm -rf $KEYSTONE_CONF_DIR/ssl
-        $KEYSTONE_BIN_DIR/keystone-manage --config-file $KEYSTONE_CONF pki_setup
-    fi
     if [[ "$KEYSTONE_TOKEN_FORMAT" == "fernet" ]]; then
         rm -rf "$KEYSTONE_CONF_DIR/fernet-keys/"
         $KEYSTONE_BIN_DIR/keystone-manage --config-file $KEYSTONE_CONF fernet_setup

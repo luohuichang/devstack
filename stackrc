@@ -800,12 +800,7 @@ SERVICE_PROTOCOL=${SERVICE_PROTOCOL:-http}
 # the memory used where there are a large number of CPUs present
 # (the default number of workers for many services is the number of CPUs)
 # Also sets the minimum number of workers to 2.
-if [[ "$VIRT_DRIVER" = 'fake' ]]; then
-    # we need more workers for the large ops job
-    API_WORKERS=${API_WORKERS:=$(( ($(nproc)/2)<2 ? 2 : ($(nproc)/2) ))}
-else
-    API_WORKERS=${API_WORKERS:=$(( ($(nproc)/4)<2 ? 2 : ($(nproc)/4) ))}
-fi
+API_WORKERS=${API_WORKERS:=$(( ($(nproc)/4)<2 ? 2 : ($(nproc)/4) ))}
 
 # Service startup timeout
 SERVICE_TIMEOUT=${SERVICE_TIMEOUT:-60}
@@ -819,11 +814,14 @@ SERVICE_GRACEFUL_SHUTDOWN_TIMEOUT=${SERVICE_GRACEFUL_SHUTDOWN_TIMEOUT:-5}
 # Service graceful shutdown timeout
 WORKER_TIMEOUT=${WORKER_TIMEOUT:-90}
 
-# Support alternative yum -- in future Fedora 'dnf' will become the
-# only supported installer, but for now 'yum' and 'dnf' are both
-# available in parallel with compatible CLIs.  Allow manual switching
-# till we get to the point we need to handle this automatically
-YUM=${YUM:-yum}
+# Choose DNF on RedHat/Fedora platforms with it, or otherwise default
+# to YUM.  Can remove this when only dnf is supported (i.e. centos7
+# disappears)
+if [[ -e /usr/bin/dnf ]]; then
+    YUM=${YUM:-dnf}
+else
+    YUM=${YUM:-yum}
+fi
 
 # Common Configuration
 # --------------------
@@ -889,10 +887,10 @@ if [[ "$SERVICE_IP_VERSION" == 6 ]]; then
 
     DEF_SERVICE_HOST=[$HOST_IPV6]
     DEF_SERVICE_LOCAL_HOST=::1
-    DEF_SERVICE_LISTEN_ADDRESS=::
+    DEF_SERVICE_LISTEN_ADDRESS="[::]"
 fi
 
-# This is either 0.0.0.0 for IPv4 or :: for IPv6
+# This is either 0.0.0.0 for IPv4 or [::] for IPv6
 SERVICE_LISTEN_ADDRESS=${SERVICE_LISTEN_ADDRESS:-${DEF_SERVICE_LISTEN_ADDRESS}}
 
 # Allow the use of an alternate hostname (such as localhost/127.0.0.1) for

@@ -60,6 +60,7 @@ drbd-devstack                          `git://git.openstack.org/openstack/drbd-d
 ec2-api                                `git://git.openstack.org/openstack/ec2-api <https://git.openstack.org/cgit/openstack/ec2-api>`__
 freezer                                `git://git.openstack.org/openstack/freezer <https://git.openstack.org/cgit/openstack/freezer>`__
 freezer-api                            `git://git.openstack.org/openstack/freezer-api <https://git.openstack.org/cgit/openstack/freezer-api>`__
+freezer-tempest-plugin                 `git://git.openstack.org/openstack/freezer-tempest-plugin <https://git.openstack.org/cgit/openstack/freezer-tempest-plugin>`__
 freezer-web-ui                         `git://git.openstack.org/openstack/freezer-web-ui <https://git.openstack.org/cgit/openstack/freezer-web-ui>`__
 fuxi                                   `git://git.openstack.org/openstack/fuxi <https://git.openstack.org/cgit/openstack/fuxi>`__
 gce-api                                `git://git.openstack.org/openstack/gce-api <https://git.openstack.org/cgit/openstack/gce-api>`__
@@ -99,6 +100,7 @@ monasca-tempest-plugin                 `git://git.openstack.org/openstack/monasc
 monasca-transform                      `git://git.openstack.org/openstack/monasca-transform <https://git.openstack.org/cgit/openstack/monasca-transform>`__
 murano                                 `git://git.openstack.org/openstack/murano <https://git.openstack.org/cgit/openstack/murano>`__
 networking-6wind                       `git://git.openstack.org/openstack/networking-6wind <https://git.openstack.org/cgit/openstack/networking-6wind>`__
+networking-ansible                     `git://git.openstack.org/openstack/networking-ansible <https://git.openstack.org/cgit/openstack/networking-ansible>`__
 networking-arista                      `git://git.openstack.org/openstack/networking-arista <https://git.openstack.org/cgit/openstack/networking-arista>`__
 networking-bagpipe                     `git://git.openstack.org/openstack/networking-bagpipe <https://git.openstack.org/cgit/openstack/networking-bagpipe>`__
 networking-baremetal                   `git://git.openstack.org/openstack/networking-baremetal <https://git.openstack.org/cgit/openstack/networking-baremetal>`__
